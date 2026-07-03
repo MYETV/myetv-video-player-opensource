@@ -1088,12 +1088,6 @@ createTopBar() {
 
     topBar.appendChild(titleSection);
 
-    // spacer element
-    const spacer = document.createElement('div');
-    spacer.className = 'top-bar-spacer';
-    spacer.style.flex = '1';
-    topBar.appendChild(spacer);
-
     // Right section - Settings control
     const settingsControl = document.createElement('div');
     settingsControl.className = 'settings-control settings-top-bar';

@@ -591,13 +591,17 @@ checkScreenSize() {
 
 /* Update settings menu visibility */
 updateSettingsMenuVisibility() {
-    // SEARCH IN CONTAINER
+    // Search in container
     const settingsControl = this.container?.querySelector('.settings-control');
 
     if (!settingsControl) return;
 
-    // Always show settings
-    settingsControl.style.display = 'block';
+    // Respect the initial player option instead of forcing display: block
+    if (this.options.showSettingsMenu) {
+        settingsControl.style.display = 'block';
+    } else {
+        settingsControl.style.display = 'none';
+    }
 
     // Populate settings menu
     this.populateSettingsMenu();
