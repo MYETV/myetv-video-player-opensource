@@ -510,7 +510,6 @@ body {
   margin-right: 20px;
   pointer-events: none;
   min-width: 0;
-  max-width: calc(100% - 80px);
 }
 .player-top-bar .top-bar-title .video-title {
   color: #fff;
@@ -1921,7 +1920,6 @@ body .video-wrapper .player-top-bar.persistent {
    ======================================== */
 .settings-control {
   position: relative;
-  display: block !important;
 }
 
 .settings-btn {
@@ -2145,9 +2143,6 @@ body .video-wrapper .player-top-bar.persistent {
   }
 }
 @media (max-width: 350px) {
-  .settings-control {
-    display: block !important;
-  }
   .pip-btn {
     display: none !important;
   }
