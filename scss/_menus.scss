@@ -140,7 +140,6 @@
 
 .settings-control {
     position: relative;
-    display: block !important;
 }
 
 .settings-btn {
@@ -375,7 +374,7 @@
 
 @media (max-width: 350px) {
     .settings-control {
-        display: block !important;
+
     }
 
     .pip-btn {
