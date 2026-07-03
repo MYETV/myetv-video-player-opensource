@@ -1743,12 +1743,6 @@ createTopBar() {
 
     topBar.appendChild(titleSection);
 
-    // spacer element
-    const spacer = document.createElement('div');
-    spacer.className = 'top-bar-spacer';
-    spacer.style.flex = '1';
-    topBar.appendChild(spacer);
-
     // Right section - Settings control
     const settingsControl = document.createElement('div');
     settingsControl.className = 'settings-control settings-top-bar';
@@ -4091,13 +4085,17 @@ checkScreenSize() {
 
 /* Update settings menu visibility */
 updateSettingsMenuVisibility() {
-    // SEARCH IN CONTAINER
+    // Search in container
     const settingsControl = this.container?.querySelector('.settings-control');
 
     if (!settingsControl) return;
 
-    // Always show settings
-    settingsControl.style.display = 'block';
+    // Respect the initial player option instead of forcing display: block
+    if (this.options.showSettingsMenu) {
+        settingsControl.style.display = 'block';
+    } else {
+        settingsControl.style.display = 'none';
+    }
 
     // Populate settings menu
     this.populateSettingsMenu();
