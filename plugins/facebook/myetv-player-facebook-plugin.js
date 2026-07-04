@@ -219,7 +219,9 @@
                 /facebook\.com\/.*\/videos\/(\d+)/,
                 /facebook\.com\/watch\/?\?v=(\d+)/,
                 /facebook\.com\/video\.php\?v=(\d+)/,
-                /fb\.watch\/([a-zA-Z0-9_-]+)/
+                /fb\.watch\/([a-zA-Z0-9_-]+)/,
+                /facebook\.com\/reel\/(\d+)/,
+                /facebook\.com\/.*\/reels\/(\d+)/
             ];
 
             for (const pattern of patterns) {
@@ -236,7 +238,11 @@
          */
         isFacebookUrl(url) {
             if (!url) return false;
-            return /facebook\.com\/(.*\/)?videos?\//.test(url) || /fb\.watch\//.test(url);
+            // Check for standard videos, watch links, and reel links
+            return /facebook\.com\/(.*\/)?videos?\//.test(url) ||
+                /fb\.watch\//.test(url) ||
+                /facebook\.com\/reel\//.test(url) ||
+                /facebook\.com\/.*\/reels\//.test(url);
         }
 
         /**
@@ -403,25 +409,43 @@
             if (window.FB && window.FB.XFBML) {
                 FB.XFBML.parse(this.fbContainer);
 
-                // Force styling usando la nuova funzione
+                // Force styling using the new dynamic function
                 const forceStyles = () => this.forceVideoStyles();
 
+                // Initial attempts while XFBML renders
                 setTimeout(forceStyles, 500);
-                setTimeout(forceStyles, 1500);
+                setTimeout(forceStyles, 1000);
+                setTimeout(forceStyles, 2000);
 
-                // Setup MutationObserver
-                setTimeout(() => {
-                    const span = this.fbContainer?.querySelector('span');
-                    const iframe = this.fbContainer?.querySelector('iframe');
+                // Disconnect existing observer if any
+                if (this.styleObserver) {
+                    this.styleObserver.disconnect();
+                }
 
-                    const observer = new MutationObserver(forceStyles);
+                // Create a robust MutationObserver
+                this.styleObserver = new MutationObserver((mutations) => {
+                    // Temporarily disconnect to prevent infinite loops when we apply our own styles
+                    this.styleObserver.disconnect();
 
-                    if (span) observer.observe(span, { attributes: true, attributeFilter: ['style'] });
-                    if (iframe) observer.observe(iframe, { attributes: true, attributeFilter: ['style'] });
+                    // Force our styles
+                    forceStyles();
 
-                    this.styleObserver = observer;
-                }, 2000);
+                    // Reconnect observer
+                    this.styleObserver.observe(this.fbContainer, {
+                        childList: true,
+                        subtree: true,
+                        attributes: true,
+                        attributeFilter: ['style', 'width', 'height', 'class', 'data-width', 'data-height']
+                    });
+                });
 
+                // Observe the entire parent container and all its dynamic children (subtree)
+                this.styleObserver.observe(this.fbContainer, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['style', 'width', 'height', 'class', 'data-width', 'data-height']
+                });
             }
 
             if (this.api.player.options.debug) {
@@ -618,13 +642,14 @@
         }
 
         /**
-         * Force video styles (estratto per riuso)
+         * Force video styles
          */
         forceVideoStyles() {
             const span = this.fbContainer?.querySelector('span');
             const iframe = this.fbContainer?.querySelector('iframe');
 
             if (span) {
+                // Ensure the wrapper fills the container securely
                 span.style.setProperty('position', 'absolute', 'important');
                 span.style.setProperty('top', '0', 'important');
                 span.style.setProperty('left', '0', 'important');
@@ -636,48 +661,42 @@
             }
 
             if (iframe) {
-                // IN FULLSCREEN: usa tutto lo schermo
-                if (this.isFullscreen) {
-                    iframe.style.setProperty('position', 'absolute', 'important');
-                    iframe.style.setProperty('top', '0', 'important');
-                    iframe.style.setProperty('left', '0', 'important');
-                    iframe.style.setProperty('width', '100%', 'important');
-                    iframe.style.setProperty('height', '100%', 'important');
-                    iframe.style.setProperty('transform', 'none', 'important');
-                    iframe.style.setProperty('border', 'none', 'important');
+                // Determine container dimensions (works seamlessly for both normal and fullscreen modes)
+                const container = this.api.container;
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
 
-                    if (this.api.player.options.debug) {
-                        console.log('FB Plugin: Fullscreen mode - 100% dimensions');
-                    }
+                // Prevent calculations if container is not fully rendered yet
+                if (containerWidth === 0 || containerHeight === 0) return;
+
+                const containerRatio = containerWidth / containerHeight;
+
+                // Determine if the current video is a Reel
+                const isReel = this.options.videoUrl && (this.options.videoUrl.includes('/reel/') || this.options.videoUrl.includes('/reels/'));
+                const videoRatio = isReel ? (9 / 16) : (16 / 9);
+
+                let iframeWidth, iframeHeight;
+
+                // Emulate object-fit: contain logic dynamically
+                if (containerRatio > videoRatio) {
+                    iframeHeight = containerHeight;
+                    iframeWidth = iframeHeight * videoRatio;
                 } else {
-                    // NORMALE: mantieni aspect ratio 16:9
-                    const container = this.api.container;
-                    const containerWidth = container.clientWidth;
-                    const containerHeight = container.clientHeight;
-                    const containerRatio = containerWidth / containerHeight;
-                    const videoRatio = 16 / 9;
+                    iframeWidth = containerWidth;
+                    iframeHeight = iframeWidth / videoRatio;
+                }
 
-                    let iframeWidth, iframeHeight;
+                // Apply calculated dimensions and center the iframe
+                iframe.style.setProperty('position', 'absolute', 'important');
+                iframe.style.setProperty('top', '50%', 'important');
+                iframe.style.setProperty('left', '50%', 'important');
+                iframe.style.setProperty('width', iframeWidth + 'px', 'important');
+                iframe.style.setProperty('height', iframeHeight + 'px', 'important');
+                iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                iframe.style.setProperty('border', 'none', 'important');
 
-                    if (containerRatio > videoRatio) {
-                        iframeHeight = containerHeight;
-                        iframeWidth = iframeHeight * videoRatio;
-                    } else {
-                        iframeWidth = containerWidth;
-                        iframeHeight = iframeWidth / videoRatio;
-                    }
-
-                    iframe.style.setProperty('position', 'absolute', 'important');
-                    iframe.style.setProperty('top', '50%', 'important');
-                    iframe.style.setProperty('left', '50%', 'important');
-                    iframe.style.setProperty('width', iframeWidth + 'px', 'important');
-                    iframe.style.setProperty('height', iframeHeight + 'px', 'important');
-                    iframe.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-                    iframe.style.setProperty('border', 'none', 'important');
-
-                    if (this.api.player.options.debug) {
-                        console.log('FB Plugin: Normal mode - aspect ratio maintained');
-                    }
+                if (this.api.player.options.debug) {
+                    console.log(`FB Plugin: Dimensions calculated - Mode: ${this.isFullscreen ? 'Fullscreen' : 'Normal'}, Ratio: ${isReel ? '9:16' : '16:9'}`);
                 }
             }
         }
